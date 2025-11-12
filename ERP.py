@@ -1,9 +1,11 @@
 import sqlite3
 
+# Cria uma conexão do código  com um banco de dadoss
 conn = sqlite3.connect('banco_de_dados.db')
 cursor  = conn.cursor()
+# Cursor = interpretador dos comandos sql do sistema
 cursor.execute('''
-    CREATE TABLE IF NOT EXISTS produtos (
+    CREATE TABLE IF NOT EXISTS estoque (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT,
         quantidade INTEGER,
@@ -14,7 +16,9 @@ cursor.execute('''
 
 def validar_nome():
     while True:
+# Faz repetir o símbolo do igual 100 vezes
         print("\n" + "="*100)
+#.title bota a inicial das palavras em maiúsculo
         name = input("Nome do produto: ").title()
         if name:
             return name
@@ -48,11 +52,14 @@ def cadastrar_produto():
     quantidade = validar_quantidade()
     preco = validar_preco()
     estoquemin = validar_estoquemin()
+# Insere nas colunas os valores das variáveis ditas anteriormente
     cursor.execute('''
-        INSERT INTO produtos (nome, quantidade, preco, estoquemin)
+        INSERT INTO estoque (nome, quantidade, preco, estoquemin)
         VALUES (?, ?, ?, ?)
     ''', (nome, quantidade, preco, estoquemin))
+# .commit é para salvar as mudanças feitas na Database
     conn.commit()
+# .lastrowid fornece o id da última linha inserida com sucesso
     id_produto = cursor.lastrowid
     print(f"Produto cadastrado com sucesso! ID: {id_produto}")
 
@@ -61,11 +68,14 @@ def listar_estoque():
     conn = sqlite3.connect('banco_de_dados.db')
     cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM produtos")
+# Executa a consulta para todas as linhas da tabela estoque
+    cursor.execute("SELECT COUNT(*) FROM estoque")
+# .fetchone é para recuperar uma única linha da tabela
     qtd = cursor.fetchone()[0]
     print(f"Quantidade de produtos no estoque: {qtd}")
 
-    cursor.execute("SELECT * FROM produtos ORDER BY id")
+    cursor.execute("SELECT * FROM estoque ORDER BY id")
+# .fetchall é para recuperar todas as linhas de tuplas de uma só vez
     produtos = cursor.fetchall()
 
     conn.close()
@@ -74,7 +84,8 @@ def listar_estoque():
         print("-" * 10, "Estoque vazio!", "-" * 10)
         return
 
-    print(f"\n{'Código':<10} {'Nome':<25} {'Qtd':<8} {'Preço':<12} {'Total':<12}")
+# Os números são para formatar o print numa saída bonita
+    print(f"\n{'ID':<10} {'Nome':<25} {'Qtd':<8} {'Preço':<12} {'Total':<12}")
     print("-" * 70)
 
     for produto in produtos:
@@ -92,7 +103,7 @@ def atualizar_qtd():
     conn = sqlite3.connect('banco_de_dados.db')
     cursor = conn.cursor()
 
-    cursor.execute("SELECT nome, quantidade FROM produtos WHERE id = ?", (codigo,))
+    cursor.execute("SELECT nome, quantidade FROM estoque WHERE id = ?", (codigo,))
     produto = cursor.fetchone()
 
     if not produto:
@@ -119,7 +130,7 @@ def atualizar_qtd():
                     print("Quantidade a ser adicionada tem que ser positiva!")
                     return
                 nova_qtd = qtd_atual + qtd_atualizada
-                cursor.execute("UPDATE produtos SET quantidade = ? WHERE id = ?", (nova_qtd, codigo))
+                cursor.execute("UPDATE estoque SET quantidade = ? WHERE id = ?", (nova_qtd, codigo))
                 conn.commit()
                 print(f"\n{qtd_atualizada} unidades adicionadas!\nNova quantidade: {nova_qtd}")
             case 2:
@@ -131,21 +142,52 @@ def atualizar_qtd():
                     print(f"Não há estoque suficiente para retirar {qtd_atualizada} unidades.")
                     return
                 nova_qtd = qtd_atual - qtd_atualizada
-                cursor.execute("UPDATE produtos SET quantidade = ? WHERE id = ?", (nova_qtd, codigo))
+                cursor.execute("UPDATE estoque SET quantidade = ? WHERE id = ?", (nova_qtd, codigo))
                 conn.commit()
                 print(f"\n{qtd_atualizada} unidades removidas!\nNova quantidade: {nova_qtd}")
             case _:
                 print("Digite uma opção válida!")
     except ValueError:
         print("Erro: Digite um número válido para a quantidade!")
+# O próximo bloco vai rodar independentemente de ter ocorrido uma exeção do try ou não
     finally:
         conn.close()
+
+def remover_produto():
+    try:
+        codigo = int(input("Digite o ID do produto: "))
+    except ValueError:
+        print("Produto não encontrado! Digite um ID válido.")
+        return
+    
+    conn = sqlite3.connect('banco_de_dados.db')
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT nome FROM estoque WHERE id = ?',(codigo,))
+    produto = cursor.fetchone()
+
+    if produto:
+        nome = produto [0]
+# .strip é para remover caracteres de espaço branco que houver antes e depois do input
+        confirmacao = input(f"Deseja realmente remover '{nome}' (ID: {codigo})? (S/N)\n").strip().upper()
+        if confirmacao == 'S':
+            cursor.execute('DELETE FROM estoque WHERE id = ?',(codigo,))
+            conn.commit()
+            print("Produto removido com sucesso!")
+        elif confirmacao == 'N':
+            print("Operação cancelada!")
+        else:
+            print("Digite uma operação  válida.")
+            return
+    
+    conn.close()
 
 def menu():
     while True:
         try:
             print ("\n" + "="*50,"SELECIONE UMA OPÇÃO","="*50)
-            print ("\n1 - Adicionar Produto\n2 - Listar Estoque\n3 - Atualizar Estoque\n0 - Sair")
+            print ("\n1 - Adicionar Produto\n2 - Listar Estoque\n3 - Atualizar Estoque\n4 - Remover Produto",
+            "\n0 - Sair")
             acao = int(input("Escolha a opção: "))
             match acao:
                 case 1:
@@ -154,6 +196,8 @@ def menu():
                     listar_estoque()
                 case 3:
                     atualizar_qtd()
+                case 4:
+                    remover_produto()
                 case 0:
                     print("."*60,"SAINDO","."*60)
                     break
