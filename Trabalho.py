@@ -228,10 +228,41 @@ def relatorios():
             qtd_vendida = vendas.get(id_produto, 0)
             giro = 0 if quantidade_estoque == 0 else qtd_vendida / quantidade_estoque
             print(f"{id_produto:<5}{nome:<20}{quantidade_estoque:<15}{qtd_vendida:<15}{giro:<10.2f}")
+    def custo_manutencao():
+        print("\n", "-"*25, "CUSTO DE MANUTENÇÃO DE ESTOQUE", "-"*25, "\n")
+        while True:
+            try:
+                taxa = float(input("Digite a taxa percentual do custo de manutenção (exemplo: 2 para 2%): "))
+                if taxa < 0:
+                    print("Taxa não pode ser negativa. Tente novamente.")
+                else:
+                    break
+            except ValueError:
+                print("Digite um número válido para a taxa.")
+
+        cursor.execute('SELECT id_produto, nome, preco, quantidade FROM reservatorio ORDER BY id_produto')
+        produtos = cursor.fetchall()
+
+        if not produtos:
+            print("Não há produtos cadastrados no estoque.")
+            return
+
+        print("\nResultado do custo de manutenção:\n")
+        print(f"{'ID':<5}{'NOME':<20}{'QTD':<10}{'PREÇO UNIT':<12}{'CUSTO MANUT':<15}")
+        print("-"*50)
+
+        for item in produtos:
+            id_produto, nome, preco, quantidade = item
+            custo_manut = preco * quantidade * (taxa / 100)
+            print(f"{id_produto:<5}{nome:<20}{quantidade:<10}{preco:<12.2f}{custo_manut:<15.2f}")
+
+        print("-"*50)
+
 
     while True:
         print("\n", "-"*70, "SELECIONE UMA AÇÃO", "-"*70, "\n")
-        print("1 - Listar Estoque\n2 - Atualizar Estoque\n3 - Ver Estoque Baixo\n0 - Voltar do Sistema")
+        print("1 - Listar Estoque\n2 - Atualizar Estoque\n3 - Ver Estoque Baixo\n4 - Giro de Estoque"
+            "\n5 - Custo de Manutenção\n0 - Voltar do Sistema")
         try:
             acao = int(input("Escolha uma ação: "))
             match acao:
@@ -243,6 +274,8 @@ def relatorios():
                     estoque_baixo()
                 case 4:
                     giro_estoque()
+                case 5:
+                    custo_manutencao()
                 case 0:
                     print("-"*55, "VOLTANDO", "-"*55)
                     return
