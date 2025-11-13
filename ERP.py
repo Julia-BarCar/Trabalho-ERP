@@ -60,11 +60,11 @@ def cadastrar_produto():
 # .commit é para salvar as mudanças feitas na Database
     conn.commit()
 # .lastrowid fornece o id da última linha inserida com sucesso
-    id_produto = cursor.lastrowid
-    print(f"Produto cadastrado com sucesso! ID: {id_produto}")
+    id = cursor.lastrowid
+    print(f"Produto cadastrado com sucesso! ID: {id}")
 
 def listar_estoque():
-    print("\n" + "=" * 55, "ESTOQUE", "=" * 55)
+    print("\n" + "-" * 60, "LISTAR ESTOQUE", "-" * 60)
     conn = sqlite3.connect('banco_de_dados.db')
     cursor = conn.cursor()
 
@@ -89,12 +89,13 @@ def listar_estoque():
     print("-" * 70)
 
     for produto in produtos:
-        id_produto, nome, quantidade, preco, estomin = produto
+        id, nome, quantidade, preco, estomin = produto
         total = quantidade * preco
         alerta = "⚠" if quantidade <= estomin else " "
-        print(f"{id_produto:<10} {nome:<25} {quantidade:<8} {preco:<12.2f} {total:<12.2f} {alerta}")
+        print(f"{id:<10} {nome:<25} {quantidade:<8} {preco:<12.2f} {total:<12.2f} {alerta}")
 
 def atualizar_qtd():
+    print("\n", "-"*60,"ATUALIZAR QUANTIDADE","-"*60)
     try: 
         codigo = int(input("Digite o ID do produto desejado: ").strip())
     except ValueError:
@@ -114,7 +115,7 @@ def atualizar_qtd():
     nome, qtd_atual = produto
     print(f"Produto: {nome}")
     print(f"Quantidade atual: {qtd_atual}")
-
+    
     try:
         opcao = int(input("\n1 - Adicionar Quantidade\n2 - Subtrair Quantidade\nDigite qual a opção escolhida: ").strip())
     except ValueError:
@@ -154,6 +155,7 @@ def atualizar_qtd():
         conn.close()
 
 def remover_produto():
+    print("\n", "-"*60,"REMOVER PRODUTO","-"*60)
     try:
         codigo = int(input("Digite o ID do produto: "))
     except ValueError:
@@ -182,12 +184,40 @@ def remover_produto():
     
     conn.close()
 
+def consultar_produto():
+    print("\n", "-"*60,"CONSULTAR PRODUTO","-"*60)
+    try:
+        codigo = int(input("Digite o ID do produto: "))
+    except ValueError:
+        print("Produto não encontrado! Digite um ID válido.")
+        return
+    
+    conn = sqlite3.connect('banco_de_dados.db')
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM estoque WHERE id = ?',(codigo,))
+    produto = cursor.fetchone()
+    conn.close()
+
+    if produto:
+        codigo, nome, quantidade, preco, estoquemin = produto
+        print(f"\nID: {codigo}")
+        print(f"Produto: {nome}")
+        print(f"Quantidade: {quantidade} unidades")
+        print(f"Estoque Mínimo: {estoquemin} unidades")
+        print(f"Preço Unitário: R${preco:.2f}")
+        print(f"Preço total: R${quantidade*preco:.2f}")
+        if quantidade <= estoquemin:
+            print(f"⚠ Estoque de {nome} baixo! ⚠")
+    else:
+        print(f"Produto com ID {codigo} não encontrado.")
+
 def menu():
     while True:
         try:
             print ("\n" + "="*50,"SELECIONE UMA OPÇÃO","="*50)
             print ("\n1 - Adicionar Produto\n2 - Listar Estoque\n3 - Atualizar Estoque\n4 - Remover Produto",
-            "\n0 - Sair")
+            "\n5 - Consultar Produto\n0 - Sair")
             acao = int(input("Escolha a opção: "))
             match acao:
                 case 1:
@@ -198,6 +228,8 @@ def menu():
                     atualizar_qtd()
                 case 4:
                     remover_produto()
+                case 5:
+                    consultar_produto()
                 case 0:
                     print("."*60,"SAINDO","."*60)
                     break
