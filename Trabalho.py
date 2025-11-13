@@ -118,14 +118,71 @@ def relatorios():
             alerta = "⚠" if quantidade <= estoqueminimo else " "
             print(f"\n{id_produto:<5}{nome:<10}{categoria:<15}{preco:<10}{quantidade:<8}{estoqueminimo:<8}{total:<5}{alerta}")
             print("_"*70)
+    def atualizar_estoque():
+        print("\n", "-"*35,"ATUALIZAR QUANTIDADE","-"*35,"\n")
+        try:
+            id = int(input("Digite o ID do produto a ser atualizado: "))
+        except ValueError:
+            print("Digite um ID válido!")
+            return
+        
+        cursor.execute('SELECT nome,quantidade FROM reservatorio WHERE id_produto = ?',(id,))
+        produto = cursor.fetchone()
+
+        if not produto:
+            print(f"Produto com ID '{id}' não foi encontrado.")
+            return
+        
+        nome, qtd_atual = produto
+        print(f"\nProduto: {nome}")
+        print(f"Quantidade Atual: {qtd_atual} unidades\n")
+
+        try:
+            print("\n","-"*5,"Escolha uma Opção","-"*5)
+            print("1 - Adicionar Quantidade (Entrada)\n2 - Subtrair Quantidade (Saída)")
+            opcao = int(input("Escolha uma opção: ").strip())
+        except ValueError:
+            print("Digite um número válido para a opção!")
+            return
+        
+        try:
+            match opcao:
+                case 1:
+                    qtd_somada = int(input("\nDigite a quantidade a ser adicionada: "))
+                    if qtd_somada <= 0:
+                        print("Quantidade a ser adicionada tem que ser positiva!")
+                        return
+                    nova_qtd = qtd_atual + qtd_somada
+                    cursor.execute('UPDATE reservatorio SET quantidade = ? WHERE id_produto = ?',(nova_qtd,id))
+                    conn.commit()
+                    print(f"\n{qtd_somada} unidades adicionadas!\nNova quantidade: {nova_qtd} unidades\n")
+                case 2:
+                    qtd_subtraida = int(input("\nDigite a quantidade a ser subtraída: "))
+                    if qtd_subtraida <= 0:
+                        print("Quantidade a ser subtraida tem que ser positiva!")
+                        return
+                    if qtd_subtraida > qtd_atual:
+                        print(f"Não há estoque sufuciente para retirar {qtd_subtraida} unidades.")
+                        return
+                    nova_qtd = qtd_atual - qtd_subtraida    
+                    cursor.execute('UPDATE reservatorio SET quantidade = ? WHERE id_produto = ?',(nova_qtd,id))
+                    conn.commit()
+                    print(f"\n{qtd_subtraida} unidades adicionadas!\nNova quantidade: {nova_qtd} unidades\n")
+                case _:
+                    print("Digite uma opção válida!")
+        except ValueError:
+            print("Digite um número válido para a quantidade!")
+
     while True:
         print("\n", "-"*50, "SELECIONE UMA AÇÃO", "-"*50, "\n")
-        print("1 - Listar Estoque\n0 - Voltar do Sistema")
+        print("1 - Listar Estoque\n2 - Atualizar Estoque\n0 - Voltar do Sistema")
         try:
             acao = int(input("Escolha uma ação: "))
             match acao:
                 case 1:
                     listar_estoque()
+                case 2:
+                    atualizar_estoque()
                 case 0:
                     print("-"*55, "VOLTANDO", "-"*55)
                     return
