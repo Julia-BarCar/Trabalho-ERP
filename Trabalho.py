@@ -72,15 +72,40 @@ def cadastro_produto():
     id_produto = cursor.lastrowid
     print(f"ID DO PRODUTO {nome}: {id_produto}")
 
+def excluir_produto():
+    print("\n", "-"*5, "EXCLUIR PRODUTO", "-"*5)
+    try:
+        id_produto = int(input("Digite o ID do produto a ser excluído: "))
+    except ValueError:
+        print("Digite um ID válido!")
+        return
+    cursor.execute('SELECT nome FROM reservatorio WHERE id_produto = ?', (id_produto,))
+    item = cursor.fetchone()
+    if item:
+        nome = item[0]
+        confirmacao = input(f"Deseja realmente remover '{nome}' (ID: {id_produto})? (S/N)\n").strip().upper()
+        if confirmacao == 'S':
+            cursor.execute('DELETE FROM reservatorio WHERE id_produto = ?', (id_produto,))
+            conn.commit()
+            print("Produto removido com sucesso!")
+        elif confirmacao == 'N':
+            print("Operação cancelada!")
+        else:
+            print("Digite uma operação válida.")
+    else:
+        print("Produto não encontrado!")
+
 def menu():
     while True:
         print("\n", "="*50, "SELECIONE UMA AÇÃO", "="*50, "\n")
-        print("1 - Cadastrar Produto\n0 - Sair do Sistema")
+        print("1 - Cadastrar Produto\n2 - Excluir Produto\n0 - Sair do Sistema")
         try:
             acao = int(input("Escolha uma ação: "))
             match acao:
                 case 1:
                     cadastro_produto()
+                case 2:
+                    excluir_produto()
                 case 0:
                     print("-"*55, "SAINDO", "-"*55)
                     break
