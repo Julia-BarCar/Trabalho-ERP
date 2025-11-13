@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 conn = sqlite3.connect('repositorio.db')
 cursor = conn.cursor()
 cursor.execute('''
@@ -257,12 +258,47 @@ def relatorios():
             print(f"{id_produto:<5}{nome:<20}{quantidade:<10}{preco:<12.2f}{custo_manut:<15.2f}")
 
         print("-"*50)
+    def tempo_reposicao():
+        print("\n", "-"*25, "TEMPO DE REPOSIÇÃO", "-"*25, "\n")
+        cursor.execute('SELECT id_produto, nome FROM reservatorio ORDER BY id_produto')
+        produtos = cursor.fetchall()
+
+        if not produtos:
+            print("Não há produtos cadastrados no estoque.")
+            return
+
+        tempos = {}
+        for produto in produtos:
+            id_produto, nome = produto
+            while True:
+                try:
+                    data_saida_str = input(f"Digite a data de saída do pedido para '{nome}' (ID {id_produto}) [dd/mm/aaaa]: ")
+                    data_entrada_str = input(f"Digite a data de entrada no estoque para '{nome}' (ID {id_produto}) [dd/mm/aaaa]: ")
+                    data_saida = datetime.strptime(data_saida_str, "%d/%m/%Y")
+                    data_entrada = datetime.strptime(data_entrada_str, "%d/%m/%Y")
+                    if data_entrada < data_saida:
+                        print("Data de entrada não pode ser anterior à data de saída. Tente novamente.")
+                    else:
+                        tempo = (data_entrada - data_saida).days
+                        tempos[id_produto] = tempo
+                        break
+                except ValueError:
+                    print("Formato de data inválido. Use dd/mm/aaaa.")
+
+        print("\nResultado do tempo de reposição (dias):\n")
+        print(f"{'ID':<5}{'NOME':<20}{'TEMPO DE REPOSIÇÃO':<20}")
+        print("-"*50)
+
+        for produto in produtos:
+            id_produto, nome = produto
+            tempo = tempos.get(id_produto, 0)
+            print(f"{id_produto:<5}{nome:<20}{tempo:<20}")
 
 
     while True:
         print("\n", "-"*70, "SELECIONE UMA AÇÃO", "-"*70, "\n")
         print("1 - Listar Estoque\n2 - Atualizar Estoque\n3 - Ver Estoque Baixo\n4 - Giro de Estoque"
-            "\n5 - Custo de Manutenção\n0 - Voltar do Sistema")
+            "\n5 - Custo de \n6 - Tempo de Reposição\n0 - Voltar do Sistema")
         try:
             acao = int(input("Escolha uma ação: "))
             match acao:
@@ -276,6 +312,8 @@ def relatorios():
                     giro_estoque()
                 case 5:
                     custo_manutencao()
+                case 6:
+                    tempo_reposicao()
                 case 0:
                     print("-"*55, "VOLTANDO", "-"*55)
                     return
