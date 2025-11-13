@@ -97,7 +97,7 @@ def excluir_produto():
 
 def relatorios():
     def listar_estoque():
-        print("\n","-"*35, "LISTAR ESTOQUE","-"*35,"\n")
+        print("\n","-"*25, "LISTAR ESTOQUE","-"*25,"\n")
         
         cursor.execute('SELECT * FROM reservatorio')
         qtd = cursor.fetchone()[0]
@@ -110,16 +110,16 @@ def relatorios():
             return
         
         print(f"\n{'ID':<5}{'NOME':<10}{'CATEGORIA':<15}{'PREÇO':<10}{'QTD':<8}{'MÍNIMO':<8}{'TOTAL':<5}")
-        print("_"*70)
+        print("_"*50)
 
         for item in produtos:
             id_produto, nome, categoria, preco, quantidade, estoqueminimo = item
             total = quantidade * preco
             alerta = "⚠" if quantidade <= estoqueminimo else " "
             print(f"\n{id_produto:<5}{nome:<10}{categoria:<15}{preco:<10}{quantidade:<8}{estoqueminimo:<8}{total:<5}{alerta}")
-            print("_"*70)
+            print("_"*50)
     def atualizar_estoque():
-        print("\n", "-"*35,"ATUALIZAR QUANTIDADE","-"*35,"\n")
+        print("\n", "-"*25,"ATUALIZAR QUANTIDADE","-"*25,"\n")
         try:
             id = int(input("Digite o ID do produto a ser atualizado: "))
         except ValueError:
@@ -173,7 +173,7 @@ def relatorios():
         except ValueError:
             print("Digite um número válido para a quantidade!")
     def estoque_baixo():
-        print("\n", "-"*35, "PRODUTOS EM ESTOQUE BAIXO", "-"*35, "\n")
+        print("\n", "-"*25, "PRODUTOS EM ESTOQUE BAIXO", "-"*25, "\n")
         cursor.execute('''
             SELECT id_produto, nome, categoria, preco, quantidade, estoqueminimo
             FROM reservatorio
@@ -194,12 +194,43 @@ def relatorios():
             total = preco * quantidade
             print(f"{id_produto:<5}{nome:<10}{categoria:<15}{preco:<10.2f}{quantidade:<8}{estoqueminimo:<8}{total:<10.2f}")
 
-        print("-"*70)
+        print("-"*50)
         print("⚠ Produtos com Estoque Baixo! ⚠")
+    def giro_estoque():
+        print("\n", "-"*25, "GIRO DE ESTOQUE", "-"*25, "\n")
+        cursor.execute('SELECT id_produto, nome, quantidade FROM reservatorio ORDER BY id_produto')
+        produtos = cursor.fetchall()
 
+        if not produtos:
+            print("Não há produtos cadastrados no estoque.")
+            return
+
+        vendas = {}
+        for produto in produtos:
+            id_produto, nome, _ = produto
+            while True:
+                try:
+                    qtd_vendida = int(input(f"Digite a quantidade vendida no período para '{nome}' (ID {id_produto}): "))
+                    if qtd_vendida < 0:
+                        print("Quantidade vendida não pode ser negativa. Tente novamente.")
+                    else:
+                        vendas[id_produto] = qtd_vendida
+                        break
+                except ValueError:
+                    print("Digite um número inteiro válido.")
+
+        print("\nResultado do giro de estoque:\n")
+        print(f"{'ID':<5}{'NOME':<20}{'QTD ESTOQUE':<15}{'QTD VENDIDA':<15}{'GIRO':<10}")
+        print("-"*50)
+
+        for produto in produtos:
+            id_produto, nome, quantidade_estoque = produto
+            qtd_vendida = vendas.get(id_produto, 0)
+            giro = 0 if quantidade_estoque == 0 else qtd_vendida / quantidade_estoque
+            print(f"{id_produto:<5}{nome:<20}{quantidade_estoque:<15}{qtd_vendida:<15}{giro:<10.2f}")
 
     while True:
-        print("\n", "-"*50, "SELECIONE UMA AÇÃO", "-"*50, "\n")
+        print("\n", "-"*70, "SELECIONE UMA AÇÃO", "-"*70, "\n")
         print("1 - Listar Estoque\n2 - Atualizar Estoque\n3 - Ver Estoque Baixo\n0 - Voltar do Sistema")
         try:
             acao = int(input("Escolha uma ação: "))
@@ -210,6 +241,8 @@ def relatorios():
                     atualizar_estoque()
                 case 3:
                     estoque_baixo()
+                case 4:
+                    giro_estoque()
                 case 0:
                     print("-"*55, "VOLTANDO", "-"*55)
                     return
@@ -220,7 +253,7 @@ def relatorios():
 
 def menu():
     while True:
-        print("\n", "="*50, "SELECIONE UMA AÇÃO", "="*50, "\n")
+        print("\n", "="*70, "SELECIONE UMA AÇÃO", "="*70, "\n")
         print("1 - Cadastrar Produto\n2 - Excluir Produto\n3 - Relatórios de Produtos Cadastrados\n0 - Sair do Sistema")
         try:
             acao = int(input("Escolha uma ação: "))
