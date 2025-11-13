@@ -212,12 +212,42 @@ def consultar_produto():
     else:
         print(f"Produto com ID {codigo} não encontrado.")
 
+def estoque_baixo():
+    print("\n", "-"*50,"PRODUTOS EM ESTOQUE BAIXO","-"*50)
+    
+    conn = sqlite3.connect('banco_de_dados.db')
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, nome, quantidade, estoquemin
+        FROM estoque
+        WHERE quantidade <= estoquemin
+        ORDER BY id
+    ''')
+    produtos_baixo = cursor.fetchall()
+    conn.close()
+
+    if not produtos_baixo:
+        print("Não há produtos abaixo do limite no estoque!")
+        return
+    
+    print(f"\n{'ID':<10} {'Nome':<25} {'Qnt Atual':<12} {'Mínimo':<10}")
+    print("-"*60)
+
+    for produtos in produtos_baixo:
+        codigo, nome, quantidade,  estoquemin = produtos
+        print(f"\n{codigo:<10} {nome:<25} {quantidade:<12} {estoquemin:<10}")
+    
+    print("-"*60)
+    print("⚠ Produtos com Estoque Baixo! ⚠")
+
+
 def menu():
     while True:
         try:
             print ("\n" + "="*50,"SELECIONE UMA OPÇÃO","="*50)
             print ("\n1 - Adicionar Produto\n2 - Listar Estoque\n3 - Atualizar Estoque\n4 - Remover Produto",
-            "\n5 - Consultar Produto\n0 - Sair")
+            "\n5 - Consultar Produto\n6 - Consultar Estoque Baixo\n0 - Sair")
             acao = int(input("Escolha a opção: "))
             match acao:
                 case 1:
@@ -230,6 +260,8 @@ def menu():
                     remover_produto()
                 case 5:
                     consultar_produto()
+                case 6:
+                    estoque_baixo()
                 case 0:
                     print("."*60,"SAINDO","."*60)
                     break
