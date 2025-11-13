@@ -172,10 +172,35 @@ def relatorios():
                     print("Digite uma opção válida!")
         except ValueError:
             print("Digite um número válido para a quantidade!")
+    def estoque_baixo():
+        print("\n", "-"*35, "PRODUTOS EM ESTOQUE BAIXO", "-"*35, "\n")
+        cursor.execute('''
+            SELECT id_produto, nome, categoria, preco, quantidade, estoqueminimo
+            FROM reservatorio
+            WHERE quantidade <= estoqueminimo
+            ORDER BY id_produto
+        ''')
+        produtos_baixo = cursor.fetchall()
+
+        if not produtos_baixo:
+            print("Não há produtos abaixo do limite no estoque!")
+            return
+
+        print(f"\n{'ID':<5}{'NOME':<10}{'CATEGORIA':<15}{'PREÇO':<10}{'QTD':<8}{'MÍNIMO':<8}{'TOTAL':<10}")
+        print("_"*70)
+
+        for item in produtos_baixo:
+            id_produto, nome, categoria, preco, quantidade, estoqueminimo = item
+            total = preco * quantidade
+            print(f"{id_produto:<5}{nome:<10}{categoria:<15}{preco:<10.2f}{quantidade:<8}{estoqueminimo:<8}{total:<10.2f}")
+
+        print("-"*70)
+        print("⚠ Produtos com Estoque Baixo! ⚠")
+
 
     while True:
         print("\n", "-"*50, "SELECIONE UMA AÇÃO", "-"*50, "\n")
-        print("1 - Listar Estoque\n2 - Atualizar Estoque\n0 - Voltar do Sistema")
+        print("1 - Listar Estoque\n2 - Atualizar Estoque\n3 - Ver Estoque Baixo\n0 - Voltar do Sistema")
         try:
             acao = int(input("Escolha uma ação: "))
             match acao:
@@ -183,6 +208,8 @@ def relatorios():
                     listar_estoque()
                 case 2:
                     atualizar_estoque()
+                case 3:
+                    estoque_baixo()
                 case 0:
                     print("-"*55, "VOLTANDO", "-"*55)
                     return
