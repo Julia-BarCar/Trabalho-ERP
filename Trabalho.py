@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime
+import matplotlib.pyplot as plt
 conn = sqlite3.connect('repositorio.db')
 cursor = conn.cursor()
 cursor.execute('''
@@ -119,6 +120,7 @@ def relatorios():
             alerta = "⚠" if quantidade <= estoqueminimo else " "
             print(f"\n{id_produto:<5}{nome:<10}{categoria:<15}{preco:<10}{quantidade:<8}{estoqueminimo:<8}{total:<5}{alerta}")
             print("_"*50)
+            return
     def atualizar_estoque():
         print("\n", "-"*25,"ATUALIZAR QUANTIDADE","-"*25,"\n")
         try:
@@ -171,6 +173,7 @@ def relatorios():
                     print(f"\n{qtd_subtraida} unidades adicionadas!\nNova quantidade: {nova_qtd} unidades\n")
                 case _:
                     print("Digite uma opção válida!")
+            return
         except ValueError:
             print("Digite um número válido para a quantidade!")
     def estoque_baixo():
@@ -197,108 +200,125 @@ def relatorios():
 
         print("-"*50)
         print("⚠ Produtos com Estoque Baixo! ⚠")
-    def giro_estoque():
-        print("\n", "-"*25, "GIRO DE ESTOQUE", "-"*25, "\n")
-        cursor.execute('SELECT id_produto, nome, quantidade FROM reservatorio ORDER BY id_produto')
-        produtos = cursor.fetchall()
+        return
+    def contas():
+        def giro_estoque():
+            print("\n", "-"*25, "GIRO DE ESTOQUE", "-"*25, "\n")
+            cursor.execute('SELECT id_produto, nome, quantidade FROM reservatorio ORDER BY id_produto')
+            produtos = cursor.fetchall()
 
-        if not produtos:
-            print("Não há produtos cadastrados no estoque.")
-            return
+            if not produtos:
+                print("Não há produtos cadastrados no estoque.")
+                return
 
-        vendas = {}
-        for produto in produtos:
-            id_produto, nome, _ = produto
+            vendas = {}
+            for produto in produtos:
+                id_produto, nome, _ = produto
+                while True:
+                    try:
+                        qtd_vendida = int(input(f"Digite a quantidade vendida no período para '{nome}' (ID {id_produto}): "))
+                        if qtd_vendida < 0:
+                            print("Quantidade vendida não pode ser negativa. Tente novamente.")
+                        else:
+                            vendas[id_produto] = qtd_vendida
+                            break
+                    except ValueError:
+                        print("Digite um número inteiro válido.")
+
+            print("\nResultado do giro de estoque:\n")
+            print(f"{'ID':<5}{'NOME':<20}{'QTD ESTOQUE':<15}{'QTD VENDIDA':<15}{'GIRO':<10}")
+            print("-"*50)
+
+            for produto in produtos:
+                id_produto, nome, quantidade_estoque = produto
+                qtd_vendida = vendas.get(id_produto, 0)
+                giro = 0 if quantidade_estoque == 0 else qtd_vendida / quantidade_estoque
+                print(f"{id_produto:<5}{nome:<20}{quantidade_estoque:<15}{qtd_vendida:<15}{giro:<10.2f}")
+        def custo_manutencao():
+            print("\n", "-"*25, "CUSTO DE MANUTENÇÃO DE ESTOQUE", "-"*25, "\n")
             while True:
                 try:
-                    qtd_vendida = int(input(f"Digite a quantidade vendida no período para '{nome}' (ID {id_produto}): "))
-                    if qtd_vendida < 0:
-                        print("Quantidade vendida não pode ser negativa. Tente novamente.")
+                    taxa = float(input("Digite a taxa percentual do custo de manutenção (exemplo: 2 para 2%): "))
+                    if taxa < 0:
+                        print("Taxa não pode ser negativa. Tente novamente.")
                     else:
-                        vendas[id_produto] = qtd_vendida
                         break
                 except ValueError:
-                    print("Digite um número inteiro válido.")
+                    print("Digite um número válido para a taxa.")
 
-        print("\nResultado do giro de estoque:\n")
-        print(f"{'ID':<5}{'NOME':<20}{'QTD ESTOQUE':<15}{'QTD VENDIDA':<15}{'GIRO':<10}")
-        print("-"*50)
+            cursor.execute('SELECT id_produto, nome, preco, quantidade FROM reservatorio ORDER BY id_produto')
+            produtos = cursor.fetchall()
 
-        for produto in produtos:
-            id_produto, nome, quantidade_estoque = produto
-            qtd_vendida = vendas.get(id_produto, 0)
-            giro = 0 if quantidade_estoque == 0 else qtd_vendida / quantidade_estoque
-            print(f"{id_produto:<5}{nome:<20}{quantidade_estoque:<15}{qtd_vendida:<15}{giro:<10.2f}")
-    def custo_manutencao():
-        print("\n", "-"*25, "CUSTO DE MANUTENÇÃO DE ESTOQUE", "-"*25, "\n")
+            if not produtos:
+                print("Não há produtos cadastrados no estoque.")
+                return
+
+            print("\nResultado do custo de manutenção:\n")
+            print(f"{'ID':<5}{'NOME':<20}{'QTD':<10}{'PREÇO UNIT':<12}{'CUSTO MANUT':<15}")
+            print("-"*50)
+
+            for item in produtos:
+                id_produto, nome, preco, quantidade = item
+                custo_manut = preco * quantidade * (taxa / 100)
+                print(f"{id_produto:<5}{nome:<20}{quantidade:<10}{preco:<12.2f}{custo_manut:<15.2f}")
+
+            print("-"*50)
+        def tempo_reposicao():
+            print("\n", "-"*25, "TEMPO DE REPOSIÇÃO", "-"*25, "\n")
+            cursor.execute('SELECT id_produto, nome FROM reservatorio ORDER BY id_produto')
+            produtos = cursor.fetchall()
+
+            if not produtos:
+                print("Não há produtos cadastrados no estoque.")
+                return
+
+            tempos = {}
+            for produto in produtos:
+                id_produto, nome = produto
+                while True:
+                    try:
+                        data_saida_str = input(f"Digite a data de saída do pedido para '{nome}' (ID {id_produto}) [dd/mm/aaaa]: ")
+                        data_entrada_str = input(f"Digite a data de entrada no estoque para '{nome}' (ID {id_produto}) [dd/mm/aaaa]: ")
+                        data_saida = datetime.strptime(data_saida_str, "%d/%m/%Y")
+                        data_entrada = datetime.strptime(data_entrada_str, "%d/%m/%Y")
+                        if data_entrada < data_saida:
+                            print("Data de entrada não pode ser anterior à data de saída. Tente novamente.")
+                        else:
+                            tempo = (data_entrada - data_saida).days
+                            tempos[id_produto] = tempo
+                            break
+                    except ValueError:
+                        print("Formato de data inválido. Use dd/mm/aaaa.")
+
+            print("\nResultado do tempo de reposição (dias):\n")
+            print(f"{'ID':<5}{'NOME':<20}{'TEMPO DE REPOSIÇÃO':<20}")
+            print("-"*50)
+
+            for produto in produtos:
+                id_produto, nome = produto
+                tempo = tempos.get(id_produto, 0)
+                print(f"{id_produto:<5}{nome:<20}{tempo:<20}")
         while True:
+            print("\n", "-"*30, "SELECIONE UM RELATÓRIO GERENCIAL", "-"*30, "\n")
+            print("1 - Giro de Estoque\n2 - Custo de Manutenção\n3 - Tempo de Reposição")
             try:
-                taxa = float(input("Digite a taxa percentual do custo de manutenção (exemplo: 2 para 2%): "))
-                if taxa < 0:
-                    print("Taxa não pode ser negativa. Tente novamente.")
-                else:
-                    break
+                acao = int(input("Digite o relatório que deseja ver: "))
+                match acao:
+                    case 1:
+                        giro_estoque()
+                    case 2:
+                        custo_manutencao()
+                    case 3:
+                        tempo_reposicao()
+                    case _:
+                        print("Opção inválida! Digite uma ação válida.")
+                return
             except ValueError:
-                print("Digite um número válido para a taxa.")
-
-        cursor.execute('SELECT id_produto, nome, preco, quantidade FROM reservatorio ORDER BY id_produto')
-        produtos = cursor.fetchall()
-
-        if not produtos:
-            print("Não há produtos cadastrados no estoque.")
-            return
-
-        print("\nResultado do custo de manutenção:\n")
-        print(f"{'ID':<5}{'NOME':<20}{'QTD':<10}{'PREÇO UNIT':<12}{'CUSTO MANUT':<15}")
-        print("-"*50)
-
-        for item in produtos:
-            id_produto, nome, preco, quantidade = item
-            custo_manut = preco * quantidade * (taxa / 100)
-            print(f"{id_produto:<5}{nome:<20}{quantidade:<10}{preco:<12.2f}{custo_manut:<15.2f}")
-
-        print("-"*50)
-    def tempo_reposicao():
-        print("\n", "-"*25, "TEMPO DE REPOSIÇÃO", "-"*25, "\n")
-        cursor.execute('SELECT id_produto, nome FROM reservatorio ORDER BY id_produto')
-        produtos = cursor.fetchall()
-
-        if not produtos:
-            print("Não há produtos cadastrados no estoque.")
-            return
-
-        tempos = {}
-        for produto in produtos:
-            id_produto, nome = produto
-            while True:
-                try:
-                    data_saida_str = input(f"Digite a data de saída do pedido para '{nome}' (ID {id_produto}) [dd/mm/aaaa]: ")
-                    data_entrada_str = input(f"Digite a data de entrada no estoque para '{nome}' (ID {id_produto}) [dd/mm/aaaa]: ")
-                    data_saida = datetime.strptime(data_saida_str, "%d/%m/%Y")
-                    data_entrada = datetime.strptime(data_entrada_str, "%d/%m/%Y")
-                    if data_entrada < data_saida:
-                        print("Data de entrada não pode ser anterior à data de saída. Tente novamente.")
-                    else:
-                        tempo = (data_entrada - data_saida).days
-                        tempos[id_produto] = tempo
-                        break
-                except ValueError:
-                    print("Formato de data inválido. Use dd/mm/aaaa.")
-
-        print("\nResultado do tempo de reposição (dias):\n")
-        print(f"{'ID':<5}{'NOME':<20}{'TEMPO DE REPOSIÇÃO':<20}")
-        print("-"*50)
-
-        for produto in produtos:
-            id_produto, nome = produto
-            tempo = tempos.get(id_produto, 0)
-            print(f"{id_produto:<5}{nome:<20}{tempo:<20}")
-
-
+                print("Caractere inválido! Tente novamente.")
     while True:
         print("\n", "-"*70, "SELECIONE UMA AÇÃO", "-"*70, "\n")
-        print("1 - Listar Estoque\n2 - Atualizar Estoque\n3 - Ver Estoque Baixo\n4 - Giro de Estoque"
-            "\n5 - Custo de \n6 - Tempo de Reposição\n0 - Voltar do Sistema")
+        print("1 - Listar Estoque\n2 - Atualizar Estoque\n3 - Ver Estoque Baixo\n4 - Relatórios Gerenciais\n"
+        "5 - Gráficos\n0 - Voltar do Sistema")
         try:
             acao = int(input("Escolha uma ação: "))
             match acao:
@@ -309,11 +329,7 @@ def relatorios():
                 case 3:
                     estoque_baixo()
                 case 4:
-                    giro_estoque()
-                case 5:
-                    custo_manutencao()
-                case 6:
-                    tempo_reposicao()
+                    contas()
                 case 0:
                     print("-"*55, "VOLTANDO", "-"*55)
                     return
