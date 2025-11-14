@@ -1,8 +1,12 @@
 import sqlite3
 from datetime import datetime
+from collections import defaultdict
 import matplotlib.pyplot as plt
-conn = sqlite3.connect('repositorio.db')
+
+conn = sqlite3.connect('reservatorio.db')
 cursor = conn.cursor()
+
+# TABELA PRINCIPAL
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS reservatorio (
         id_produto INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,21 +18,33 @@ cursor.execute('''
     )
 ''')
 
+# TABELA HISTÓRICO DE ESTOQUE
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS historico_estoque (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_produto INTEGER,
+        periodo TEXT,
+        quantidade INTEGER,
+        FOREIGN KEY (id_produto) REFERENCES reservatorio(id_produto)
+    )
+''')
+conn.commit()
+
 def cadastro_produto():
     def validar_nome():
         while True:
-            nome = input("Produto: ").title()
+            nome = input("Produto: ").strip().title()
             if nome:
                 return nome
             else:
-                print("Não pode deixar esse espaço em branco!")
+                print("Não pode deixar esse espaço em branco!")   
     def validar_categoria():
         while True:
-            tipo = input("Categoria: ").title()
+            tipo = input("Categoria: ").strip().title()
             if tipo:
                 return tipo
             else:
-                print("Não pode deixar esse espaço em branco!")
+                print("Não pode deixar esse espaço em branco!")  
     def validar_preco():
         while True:
             try:
@@ -38,28 +54,28 @@ def cadastro_produto():
                 else:
                     return valor
             except ValueError:
-                print("O preço tem que ser um número real positivo!")
+                print("O preço tem que ser um número real positivo!")  
     def validar_quantidade():
         while True:
             try:
                 qtd = int(input("Quantidade: "))
-                if qtd <= 0:
-                    print("A quantidade tem que ser um número inteiro positivo!")
+                if qtd < 0:
+                    print("A quantidade não pode ser negativa!")
                 else:
                     return qtd
             except ValueError:
-                print("A quantidade tem que ser um número inteiro positivo!")
+                print("A quantidade tem que ser um número inteiro válido!") 
     def validar_minimo():
         while True:
             try:
                 estomin = int(input("Estoque Mínimo: "))
-                if estomin <= 0:
-                    print("O estoque mínimo tem que ser um número inteiro positivo!")
+                if estomin < 0:
+                    print("O estoque mínimo não pode ser negativo!")
                 else:
                     return estomin
             except ValueError:
-                print("O estoque mínimo tem que ser um número inteiro positivo!")
-    print("\n","-"*35,"CADASTRO DE PRODUTO","-"*35)
+                print("O estoque mínimo tem que ser um número inteiro válido!")
+    print("\n", "-"*10, "CADASTRO DE PRODUTO", "-"*10)
     nome = validar_nome()
     tipo = validar_categoria()
     valor = validar_preco()
@@ -69,27 +85,28 @@ def cadastro_produto():
     cursor.execute('''
                    INSERT INTO reservatorio (nome,categoria,preco,quantidade,estoqueminimo) 
                    VALUES (?,?,?,?,?)
-                   ''', (nome,tipo,valor,qtd,min))
+                   ''', (nome, tipo, valor, qtd, min))
     conn.commit()
     id_produto = cursor.lastrowid
-    print(f"ID DO PRODUTO {nome}: {id_produto}")
+    print(f"Produto cadastrado com sucesso! ID: {id_produto}")
 
 def excluir_produto():
-    print("\n", "-"*35, "EXCLUIR PRODUTO", "-"*35)
+    print("\n", "-"*10, "EXCLUIR PRODUTO", "-"*10)
     try:
         id_produto = int(input("Digite o ID do produto a ser excluído: "))
     except ValueError:
         print("Digite um ID válido!")
-        return
+        return  
     cursor.execute('SELECT nome FROM reservatorio WHERE id_produto = ?', (id_produto,))
     item = cursor.fetchone()
     if item:
         nome = item[0]
-        confirmacao = input(f"Deseja realmente remover '{nome}' (ID: {id_produto})? (S/N)\n").strip().upper()
+        confirmacao = input(f"Deseja realmente remover '{nome}' (ID: {id_produto})? (S/N): ").strip().upper()
         if confirmacao == 'S':
             cursor.execute('DELETE FROM reservatorio WHERE id_produto = ?', (id_produto,))
+            cursor.execute('DELETE FROM historico_estoque WHERE id_produto = ?', (id_produto,))
             conn.commit()
-            print("Produto removido com sucesso!")
+            print("✓ Produto removido com sucesso!")
         elif confirmacao == 'N':
             print("Operação cancelada!")
         else:
@@ -99,11 +116,12 @@ def excluir_produto():
 
 def relatorios():
     def listar_estoque():
-        print("\n","-"*25, "LISTAR ESTOQUE","-"*25,"\n")
+        print("\n", "-"*10, "LISTAR ESTOQUE", "-"*10, "\n")
         
-        cursor.execute('SELECT * FROM reservatorio')
-        qtd = cursor.fetchone()[0]
-        print(f"Quantidade de Produtos no Estoque: {qtd}")
+        cursor.execute('SELECT COUNT(*) FROM reservatorio')
+        qtd_total = cursor.fetchone()[0]
+        print(f"Quantidade de Produtos no Estoque: {qtd_total}\n")
+        
         cursor.execute('SELECT * FROM reservatorio ORDER BY id_produto')
         produtos = cursor.fetchall()
 
@@ -111,25 +129,25 @@ def relatorios():
             print("Não há produtos no estoque!")
             return
         
-        print(f"\n{'ID':<5}{'NOME':<10}{'CATEGORIA':<15}{'PREÇO':<10}{'QTD':<8}{'MÍNIMO':<8}{'TOTAL':<5}")
-        print("_"*50)
+        print(f"{'ID':<5}{'NOME':<20}{'CATEGORIA':<15}{'PREÇO':<10}{'QTD':<8}{'MÍNIMO':<8}{'TOTAL':<12}{'STATUS':<5}")
+        print("-"*70)
 
         for item in produtos:
             id_produto, nome, categoria, preco, quantidade, estoqueminimo = item
             total = quantidade * preco
-            alerta = "⚠" if quantidade <= estoqueminimo else " "
-            print(f"\n{id_produto:<5}{nome:<10}{categoria:<15}{preco:<10}{quantidade:<8}{estoqueminimo:<8}{total:<5}{alerta}")
-            print("_"*50)
-            return
+            alerta = "⚠" if quantidade <= estoqueminimo else "✓"
+            print(f"{id_produto:<5}{nome:<20}{categoria:<15}{preco:<10.2f}{quantidade:<8}{estoqueminimo:<8}{total:<12.2f}{alerta:<5}")
+        
+        print("-"*70)
     def atualizar_estoque():
-        print("\n", "-"*25,"ATUALIZAR QUANTIDADE","-"*25,"\n")
+        print("\n", "-"*10, "ATUALIZAR QUANTIDADE", "-"*10, "\n")
         try:
             id = int(input("Digite o ID do produto a ser atualizado: "))
         except ValueError:
             print("Digite um ID válido!")
             return
         
-        cursor.execute('SELECT nome,quantidade FROM reservatorio WHERE id_produto = ?',(id,))
+        cursor.execute('SELECT nome,quantidade FROM reservatorio WHERE id_produto = ?', (id,))
         produto = cursor.fetchone()
 
         if not produto:
@@ -141,7 +159,7 @@ def relatorios():
         print(f"Quantidade Atual: {qtd_atual} unidades\n")
 
         try:
-            print("\n","-"*5,"Escolha uma Opção","-"*5)
+            print("\n", "-"*5, "Escolha uma Opção", "-"*5)
             print("1 - Adicionar Quantidade (Entrada)\n2 - Subtrair Quantidade (Saída)")
             opcao = int(input("Escolha uma opção: ").strip())
         except ValueError:
@@ -156,28 +174,27 @@ def relatorios():
                         print("Quantidade a ser adicionada tem que ser positiva!")
                         return
                     nova_qtd = qtd_atual + qtd_somada
-                    cursor.execute('UPDATE reservatorio SET quantidade = ? WHERE id_produto = ?',(nova_qtd,id))
+                    cursor.execute('UPDATE reservatorio SET quantidade = ? WHERE id_produto = ?', (nova_qtd, id))
                     conn.commit()
-                    print(f"\n{qtd_somada} unidades adicionadas!\nNova quantidade: {nova_qtd} unidades\n")
+                    print(f"\n✓ {qtd_somada} unidades adicionadas!\nNova quantidade: {nova_qtd} unidades\n")
                 case 2:
                     qtd_subtraida = int(input("\nDigite a quantidade a ser subtraída: "))
                     if qtd_subtraida <= 0:
                         print("Quantidade a ser subtraida tem que ser positiva!")
                         return
                     if qtd_subtraida > qtd_atual:
-                        print(f"Não há estoque sufuciente para retirar {qtd_subtraida} unidades.")
+                        print(f"Não há estoque suficiente para retirar {qtd_subtraida} unidades.")
                         return
                     nova_qtd = qtd_atual - qtd_subtraida    
-                    cursor.execute('UPDATE reservatorio SET quantidade = ? WHERE id_produto = ?',(nova_qtd,id))
+                    cursor.execute('UPDATE reservatorio SET quantidade = ? WHERE id_produto = ?', (nova_qtd, id))
                     conn.commit()
-                    print(f"\n{qtd_subtraida} unidades adicionadas!\nNova quantidade: {nova_qtd} unidades\n")
+                    print(f"\n✓ {qtd_subtraida} unidades removidas!\nNova quantidade: {nova_qtd} unidades\n")
                 case _:
                     print("Digite uma opção válida!")
-            return
         except ValueError:
             print("Digite um número válido para a quantidade!")
     def estoque_baixo():
-        print("\n", "-"*25, "PRODUTOS EM ESTOQUE BAIXO", "-"*25, "\n")
+        print("\n", "-"*10, "PRODUTOS EM ESTOQUE BAIXO", "-"*10, "\n")
         cursor.execute('''
             SELECT id_produto, nome, categoria, preco, quantidade, estoqueminimo
             FROM reservatorio
@@ -190,20 +207,18 @@ def relatorios():
             print("Não há produtos abaixo do limite no estoque!")
             return
 
-        print(f"\n{'ID':<5}{'NOME':<10}{'CATEGORIA':<15}{'PREÇO':<10}{'QTD':<8}{'MÍNIMO':<8}{'TOTAL':<10}")
-        print("_"*70)
+        print(f"{'ID':<5}{'NOME':<20}{'CATEGORIA':<15}{'PREÇO':<10}{'QTD':<8}{'MÍNIMO':<8}{'TOTAL':<12}")
+        print("-"*80)
 
         for item in produtos_baixo:
             id_produto, nome, categoria, preco, quantidade, estoqueminimo = item
             total = preco * quantidade
-            print(f"{id_produto:<5}{nome:<10}{categoria:<15}{preco:<10.2f}{quantidade:<8}{estoqueminimo:<8}{total:<10.2f}")
-
-        print("-"*50)
-        print("⚠ Produtos com Estoque Baixo! ⚠")
-        return
+            print(f"{id_produto:<5}{nome:<20}{categoria:<15}{preco:<10.2f}{quantidade:<8}{estoqueminimo:<8}{total:<12.2f}")
+        print("-"*80)
+        print("⚠ Atenção: Produtos com Estoque Baixo! ⚠")
     def contas():
         def giro_estoque():
-            print("\n", "-"*25, "GIRO DE ESTOQUE", "-"*25, "\n")
+            print("\n", "-"*10, "GIRO DE ESTOQUE", "-"*10, "\n")
             cursor.execute('SELECT id_produto, nome, quantidade FROM reservatorio ORDER BY id_produto')
             produtos = cursor.fetchall()
 
@@ -227,7 +242,7 @@ def relatorios():
 
             print("\nResultado do giro de estoque:\n")
             print(f"{'ID':<5}{'NOME':<20}{'QTD ESTOQUE':<15}{'QTD VENDIDA':<15}{'GIRO':<10}")
-            print("-"*50)
+            print("-"*65)
 
             for produto in produtos:
                 id_produto, nome, quantidade_estoque = produto
@@ -235,7 +250,7 @@ def relatorios():
                 giro = 0 if quantidade_estoque == 0 else qtd_vendida / quantidade_estoque
                 print(f"{id_produto:<5}{nome:<20}{quantidade_estoque:<15}{qtd_vendida:<15}{giro:<10.2f}")
         def custo_manutencao():
-            print("\n", "-"*25, "CUSTO DE MANUTENÇÃO DE ESTOQUE", "-"*25, "\n")
+            print("\n", "-"*10, "CUSTO DE MANUTENÇÃO DE ESTOQUE", "-"*10, "\n")
             while True:
                 try:
                     taxa = float(input("Digite a taxa percentual do custo de manutenção (exemplo: 2 para 2%): "))
@@ -264,7 +279,7 @@ def relatorios():
 
             print("-"*50)
         def tempo_reposicao():
-            print("\n", "-"*25, "TEMPO DE REPOSIÇÃO", "-"*25, "\n")
+            print("\n", "-"*10, "TEMPO DE REPOSIÇÃO", "-"*10, "\n")
             cursor.execute('SELECT id_produto, nome FROM reservatorio ORDER BY id_produto')
             produtos = cursor.fetchall()
 
@@ -291,16 +306,16 @@ def relatorios():
                         print("Formato de data inválido. Use dd/mm/aaaa.")
 
             print("\nResultado do tempo de reposição (dias):\n")
-            print(f"{'ID':<5}{'NOME':<20}{'TEMPO DE REPOSIÇÃO':<20}")
+            print(f"{'ID':<5}{'NOME':<20}{'TEMPO DE REPOSIÇÃO (dias)':<25}")
             print("-"*50)
 
             for produto in produtos:
                 id_produto, nome = produto
                 tempo = tempos.get(id_produto, 0)
-                print(f"{id_produto:<5}{nome:<20}{tempo:<20}")
+                print(f"{id_produto:<5}{nome:<20}{tempo:<25}")
         while True:
             print("\n", "-"*30, "SELECIONE UM RELATÓRIO GERENCIAL", "-"*30, "\n")
-            print("1 - Giro de Estoque\n2 - Custo de Manutenção\n3 - Tempo de Reposição")
+            print("1 - Giro de Estoque\n2 - Custo de Manutenção\n3 - Tempo de Reposição\n0 - Voltar")
             try:
                 acao = int(input("Digite o relatório que deseja ver: "))
                 match acao:
@@ -310,15 +325,119 @@ def relatorios():
                         custo_manutencao()
                     case 3:
                         tempo_reposicao()
+                    case 0:
+                        return
                     case _:
                         print("Opção inválida! Digite uma ação válida.")
-                return
             except ValueError:
                 print("Caractere inválido! Tente novamente.")
+    
+    def graficos():
+        def grafico_evolucao():
+            cursor.execute('''
+                SELECT reservatorio.nome, historico_estoque.periodo, historico_estoque.quantidade
+                FROM historico_estoque
+                JOIN reservatorio ON historico_estoque.id_produto = reservatorio.id_produto
+                ORDER BY reservatorio.nome, historico_estoque.periodo
+            ''')
+            dados = cursor.fetchall()
+
+            if not dados:
+                print("Não há dados históricos de estoque.")
+                return
+
+            dados_por_produto = defaultdict(list)
+            for nome, periodo, qtd in dados:
+                dados_por_produto[nome].append((periodo, qtd))
+
+            plt.figure(figsize=(10, 6))
+            for nome, valores in dados_por_produto.items():
+                valores.sort(key=lambda x: x[0])
+                periodos = [v[0] for v in valores]
+                quantidades = [v[1] for v in valores]
+                plt.plot(periodos, quantidades, marker='o', label=nome)
+
+            plt.title('Evolução do Estoque ao Longo do Tempo')
+            plt.xlabel('Período')
+            plt.ylabel('Quantidade em Estoque')
+            plt.legend()
+            plt.grid(True)
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            plt.show()
+        def grafico_comparativo():
+            cursor.execute('SELECT categoria, SUM(quantidade) FROM reservatorio GROUP BY categoria')
+            resultados = cursor.fetchall()
+
+            if not resultados:
+                print("Não há dados de categorias no estoque.")
+                return
+
+            categorias = [r[0] for r in resultados]
+            quantidades = [r[1] for r in resultados]
+
+            plt.figure(figsize=(8, 6))
+            plt.bar(categorias, quantidades, color='skyblue')
+            plt.xlabel('Categorias')
+            plt.ylabel('Quantidade Total em Estoque')
+            plt.title('Comparação de Estoque por Categoria')
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            plt.show()
+        def curva_abc():
+            cursor.execute('SELECT nome, preco, quantidade FROM reservatorio')
+            produtos = cursor.fetchall()
+
+            if not produtos:
+                print("Estoque vazio.")
+                return
+
+            dados = [(nome, preco * qtd) for nome, preco, qtd in produtos]
+            dados.sort(key=lambda x: x[1], reverse=True)
+            
+            total = sum([d[1] for d in dados])
+            acumulado = []
+            soma_cumulada = 0
+            
+            for nome, custo in dados:
+                soma_cumulada += custo
+                acumulado.append(soma_cumulada / total * 100)
+
+            plt.figure(figsize=(10, 6))
+            plt.plot(range(1, len(acumulado) + 1), acumulado, marker='o', linewidth=2)
+            plt.axhline(y=80, color='r', linestyle='--', label='80% (Classe A)')
+            plt.axhline(y=95, color='orange', linestyle='--', label='95% (Classe B)')
+            plt.title('Curva ABC de Custos de Estoque')
+            plt.xlabel('Itens ordenados por custo')
+            plt.ylabel('Percentual acumulado do custo (%)')
+            plt.legend()
+            plt.grid(True)
+            plt.tight_layout()
+            plt.show()
+        
+        while True:
+            print("\n", "-"*30, "SELECIONE UM GRÁFICO", "-"*30, "\n")
+            print("1 - Evolução de Estoque\n2 - Comparação de Categorias\n3 - Curva ABC de Custos\n0 - Voltar")
+            try:
+                acao = int(input("Digite o gráfico que deseja ver: "))
+                match acao:
+                    case 1:
+                        grafico_evolucao()
+                    case 2:
+                        grafico_comparativo()
+                    case 3:
+                        curva_abc()
+                    case 0:
+                        return
+                    case _:
+                        print("Opção inválida! Digite uma ação válida.")
+            except ValueError:
+                print("Caractere inválido! Tente novamente.")
+    
     while True:
-        print("\n", "-"*70, "SELECIONE UMA AÇÃO", "-"*70, "\n")
+        print("\n", "-"*40, "SELECIONE UMA AÇÃO", "-"*40, "\n")
         print("1 - Listar Estoque\n2 - Atualizar Estoque\n3 - Ver Estoque Baixo\n4 - Relatórios Gerenciais\n"
-        "5 - Gráficos\n0 - Voltar do Sistema")
+              "5 - Gráficos\n0 - Voltar ao Menu Principal")
         try:
             acao = int(input("Escolha uma ação: "))
             match acao:
@@ -330,6 +449,8 @@ def relatorios():
                     estoque_baixo()
                 case 4:
                     contas()
+                case 5:
+                    graficos()
                 case 0:
                     print("-"*55, "VOLTANDO", "-"*55)
                     return
@@ -340,7 +461,7 @@ def relatorios():
 
 def menu():
     while True:
-        print("\n", "="*70, "SELECIONE UMA AÇÃO", "="*70, "\n")
+        print("\n", "="*30, "SISTEMA DE CONTROLE DE ESTOQUE", "="*30, "\n")
         print("1 - Cadastrar Produto\n2 - Excluir Produto\n3 - Relatórios de Produtos Cadastrados\n0 - Sair do Sistema")
         try:
             acao = int(input("Escolha uma ação: "))
@@ -352,12 +473,13 @@ def menu():
                 case 3:
                     relatorios()
                 case 0:
-                    print("-"*55, "SAINDO", "-"*55)
+                    print("-"*30, "ENCERRANDO SISTEMA", "-"*30)
+                    conn.close()
                     break
                 case _:
                     print("Opção inválida! Digite uma ação válida.")
         except ValueError:
             print("Caractere inválido! Tente novamente.")
 
-
-menu()
+if __name__ == "__main__":
+    menu()
