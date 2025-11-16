@@ -21,4 +21,4 @@ Funcionalidades presentes
 - Relatórios gerenciais com cálculos automáticos (giro de estoque, custo de manutenção de estoque, tempo de reposição e vendas no período).
 - Gráficos avançados: mostra evolução do estoque por produto, compara categorias e exibe curva ABC, fundamentando decisões de compra, reposição e análise financeira do estoque.
 - Cada uma dessas funções reflete práticas reais utilizadas em sistemas ERP, facilitando integração futura ou migração para plataformas maiores, além de permitir controle e
-- tomada de decisão baseada em dados.
+  tomada de decisão baseada em dados.
